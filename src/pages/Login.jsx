@@ -13,10 +13,35 @@ export default function Login() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login data:", form);
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:8080/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid credentials");
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,6 +70,9 @@ export default function Login() {
             autoComplete="current-password"
           />
 
+          {error && (
+            <p className="text-red-500 text-sm text-center mb-2">{error}</p>
+          )}
           <Button type="submit" label="Log in" className="mt-3 w-full" />
 
           <div className="mt-8 text-center">
@@ -65,7 +93,10 @@ export default function Login() {
 
           <p className="text-sm text-center text-gray-500 mt-8">
             Forgot password?{" "}
-            <Link to="/forget-password" className="text-blue-600 hover:underline">
+            <Link
+              to="/forget-password"
+              className="text-blue-600 hover:underline"
+            >
               Reset Password
             </Link>
           </p>

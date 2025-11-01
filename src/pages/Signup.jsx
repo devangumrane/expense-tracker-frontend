@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Card from "../components/common/Card";
 import Input from "../components/common/Input";
 import Button from "../components/common/Button";
@@ -13,14 +13,45 @@ export default function Signup() {
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Signup data:", form);
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await fetch(
+        "http://localhost:8080/api/v1/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Signup failed");
+      }
+
+      localStorage.setItem("token", data.token);
+      setSuccess("Signup successful! Redirecting...");
+      setTimeout(() => navigate("/dashboard"), 1000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,6 +90,13 @@ export default function Signup() {
             autoComplete="new-password"
           />
 
+          
+          {error && (
+            <p className="text-red-500 text-sm text-center mb-2">{error}</p>
+          )}
+          {success && (
+            <p className="text-green-600 text-sm text-center mb-2">{success}</p>
+          )}
           <Button type="submit" label="Sign up" className="mt-3 w-full" />
 
           <div className="mt-8 text-center">
