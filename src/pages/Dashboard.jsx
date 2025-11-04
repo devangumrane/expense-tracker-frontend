@@ -1,49 +1,83 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useDashboard } from "../context/DashboardContext";
+import StatsCard from "../components/dashboard/StatsCard";
+import TransactionTable from "../components/dashboard/TransactionTable";
+import useLiveData from "../hooks/useLiveData";
+import { TrendingUp, TrendingDown, Wallet, List } from "lucide-react";
+
+const apiUrl = import.meta.env.VITE_API_URL;
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { summary, transactions } = useDashboard();
+  const location = useLocation();
   const navigate = useNavigate();
 
+  // 🔹 Capture token from OAuth redirect once
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (token) {
+      localStorage.setItem("token", token);
+      navigate("/dashboard", { replace: true }); // clean the URL
     }
+  }, [location, navigate]);
 
-    const fetchUser = async () => {
-      try {
-        const res = await fetch("http://localhost:8080/api/v1/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  const token = localStorage.getItem("token");
+  useLiveData(token);
 
-        if (!res.ok) {
-          throw new Error("Unauthorized");
-        }
-
-        const data = await res.json();
-        setUser(data.user);
-      } catch (err) {
-        console.error("Auth check failed:", err.message);
-        localStorage.removeItem("token");
-        navigate("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [navigate]);
-
-  if (loading) return <div className="flex justify-center mt-20">Loading...</div>;
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Welcome, {user?.fullName} 👋</h1>
-      <p className="text-gray-600">Email: {user?.email}</p>
-      <p className="text-gray-600 mt-2">Total Transactions: {/* to be fetched */}</p>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">
+          Live Transaction Dashboard
+        </h1>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
+      </div>
+
+      {/* Stats Section */}
+      <div className="flex flex-wrap gap-5">
+        <StatsCard
+          title="Total Income"
+          value={`₹${summary?.totalIncome || 0}`}
+          icon={<TrendingUp size={22} />}
+        />
+        <StatsCard
+          title="Total Expense"
+          value={`₹${summary?.totalExpense || 0}`}
+          icon={<TrendingDown size={22} />}
+        />
+        <StatsCard
+          title="Net Balance"
+          value={`₹${summary?.netBalance || 0}`}
+          icon={<Wallet size={22} />}
+        />
+        <StatsCard
+          title="Transactions"
+          value={summary?.transactionCount || 0}
+          icon={<List size={22} />}
+        />
+      </div>
+
+      {/* Transactions Table */}
+      <section className="bg-white rounded-2xl shadow-md p-6">
+        <h2 className="text-lg font-semibold mb-4 text-gray-800">
+          Recent Transactions
+        </h2>
+        <TransactionTable transactions={transactions} />
+      </section>
     </div>
   );
 }
